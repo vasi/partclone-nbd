@@ -40,7 +40,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#include <sys/sendfile.h>
 
 // Macros from Linux kernel headers nbd.h and fs.h. Needed in start_client() method.
 
@@ -255,10 +254,12 @@ static status WORKER(int sock, struct image *img)
             } else {
                 
                 // direct transmission from device to device using sendfile
-                if(sendfile(sock, img->fd, NULL, once_read) != once_read) {
+                off_t fdoff = lseek(img->fd, 0, SEEK_CUR);
+                if(sendfile(img->fd, sock, fdoff, once_read, NULL, NULL, 0) != 0) {
                     log_error("Failed to send some data from image to device: %s.", strerror(errno));
                     goto error_3;
                 }
+                lseek(img->fd, once_read, SEEK_CUR);
 
             }
 
